@@ -334,23 +334,63 @@ const DialogueModifierGenerator = () => {
     return text;
   };
 
+  // Detect URLs in text
+  const detectUrls = (text: string): { text: string, urls: string[], placeholders: string[] } => {
+    if (!text) return { text, urls: [], placeholders: [] };
+    
+    // Regular expression to match URLs
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/g;
+    const urls: string[] = [];
+    const placeholders: string[] = [];
+    
+    // Replace URLs with placeholders
+    const modifiedText = text.replace(urlRegex, (match) => {
+      const placeholder = `__URL_PLACEHOLDER_${urls.length}__`;
+      urls.push(match);
+      placeholders.push(placeholder);
+      return placeholder;
+    });
+    
+    return { text: modifiedText, urls, placeholders };
+  };
+  
+  // Restore URLs in text
+  const restoreUrls = (text: string, urls: string[], placeholders: string[]): string => {
+    let restoredText = text;
+    
+    // Replace placeholders with original URLs
+    for (let i = 0; i < urls.length; i++) {
+      restoredText = restoredText.replace(placeholders[i], urls[i]);
+    }
+    
+    return restoredText;
+  };
+  
   // Apply all text modifications
   const applyAllModifications = (text: string): string => {
     if (!text || text.trim() === '') return text;
     
-    // First split into words to handle leetspeak
-    let words = text.split(' ');
-    words = words.map(word => applyLeetspeak(word, leetLevel));
-    text = words.join(' ');
+    // First detect and extract URLs
+    const { text: textWithPlaceholders, urls, placeholders } = detectUrls(text);
+    
+    // Apply leetspeak modifications (word by word)
+    let words = textWithPlaceholders.split(' ');
+    words = words.map(word => {
+      // Skip URL placeholders
+      if (word.includes('__URL_PLACEHOLDER_')) return word;
+      return applyLeetspeak(word, leetLevel);
+    });
+    let modifiedText = words.join(' ');
     
     // Apply other modifications
-    text = applyAlgospeak(text, algoLevel);
-    text = varyCapitalization(text, capitalLevel);
-    text = varyPunctuation(text, punctuationLevel);
-    text = applyTypos(text, typoLevel);
-    text = addEmojis(text, emojiLevel);
+    modifiedText = applyAlgospeak(modifiedText, algoLevel);
+    modifiedText = varyCapitalization(modifiedText, capitalLevel);
+    modifiedText = varyPunctuation(modifiedText, punctuationLevel);
+    modifiedText = applyTypos(modifiedText, typoLevel);
+    modifiedText = addEmojis(modifiedText, emojiLevel);
     
-    return text;
+    // Restore URLs
+    return restoreUrls(modifiedText, urls, placeholders);
   };
 
   // Function to convert a variation to text format
