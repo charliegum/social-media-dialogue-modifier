@@ -353,6 +353,68 @@ const DialogueModifierGenerator = () => {
     return text;
   };
 
+  // Function to convert a variation to text format
+  const variationToText = (variation: Variation, index: number): string => {
+    let text = `VARIATION #${index + 1}\n\n`;
+    
+    if (variation.originalPost) {
+      text += `ORIGINAL POST:\n${variation.originalPost}\n\n`;
+    }
+    
+    if (variation.comments.length > 0) {
+      text += `COMMENTS:\n`;
+      variation.comments.forEach(comment => {
+        text += `${comment.role === 'original' ? 'Original Poster' : 'Responder'} (Comment #${comment.id}):\n`;
+        text += `${comment.text}\n\n`;
+      });
+    }
+    
+    return text;
+  };
+  
+  // Function to download all variations as a text file
+  const downloadAllVariations = (): void => {
+    if (!generatedVariations.length) return;
+    
+    let content = `SOCIAL MEDIA DIALOGUE VARIATIONS\n`;
+    content += `Generated on: ${new Date().toLocaleString()}\n\n`;
+    content += `Settings:\n`;
+    content += `- Character Substitution Level: ${leetLevel}%\n`;
+    content += `- Word Substitution Level: ${algoLevel}%\n`;
+    content += `- Emoji Level: ${emojiLevel}%\n`;
+    content += `- Typo Level: ${typoLevel}%\n`;
+    content += `- Capitalization Level: ${capitalLevel}%\n`;
+    content += `- Punctuation Level: ${punctuationLevel}%\n\n`;
+    content += `==============================\n\n`;
+    
+    generatedVariations.forEach((variation, index) => {
+      content += variationToText(variation, index);
+      content += `------------------------------\n\n`;
+    });
+    
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'dialogue-variations.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // Function to download a single variation
+  const downloadVariation = (variation: Variation, index: number): void => {
+    const content = variationToText(variation, index);
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dialogue-variation-${index + 1}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
   // Generate all variations
   const generateAllVariations = (): void => {
     setIsGenerating(true);
@@ -609,10 +671,27 @@ const DialogueModifierGenerator = () => {
         <div ref={resultsRef} className="bg-white rounded-lg shadow p-4 mb-8">
           <h2 className="text-2xl font-bold mb-4">Generated Variations ({generatedVariations.length})</h2>
           
+          <div className="flex justify-center mb-6">
+            <button 
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg"
+              onClick={downloadAllVariations}
+            >
+              Download All Variations as .txt
+            </button>
+          </div>
+          
           <div className="space-y-8">
             {generatedVariations.map((variation, index) => (
               <div key={index} className="border rounded-lg p-4">
-                <h3 className="font-bold text-lg mb-3">Variation #{index + 1}</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-bold text-lg">Variation #{index + 1}</h3>
+                  <button
+                    className="bg-green-100 hover:bg-green-200 text-green-800 font-medium py-1 px-3 rounded text-sm"
+                    onClick={() => downloadVariation(variation, index)}
+                  >
+                    Download as .txt
+                  </button>
+                </div>
                 
                 {variation.originalPost && (
                   <div className="mb-4 bg-yellow-50 p-3 rounded-lg">
