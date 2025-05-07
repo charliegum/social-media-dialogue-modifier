@@ -393,8 +393,23 @@ const DialogueModifierGenerator = () => {
     return restoreUrls(modifiedText, urls, placeholders);
   };
 
-  // Function to convert a variation to text format
-  const variationToText = (variation: Variation, index: number): string => {
+  // Copy text to clipboard
+  const copyToClipboard = (text: string): void => {
+    navigator.clipboard.writeText(text).then(() => {
+      // You could add a toast notification here in the future
+      console.log('Copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+    });
+  };
+
+  // Function to get plain text for a post or comment
+  const getPlainText = (text: string): string => {
+    return text;
+  };
+  
+  // Function to get text for a variation
+  const getVariationText = (variation: Variation, index: number): string => {
     let text = `VARIATION #${index + 1}\n\n`;
     
     if (variation.originalPost) {
@@ -412,10 +427,8 @@ const DialogueModifierGenerator = () => {
     return text;
   };
   
-  // Function to download all variations as a text file
-  const downloadAllVariations = (): void => {
-    if (!generatedVariations.length) return;
-    
+  // Function to get text for all variations
+  const getAllVariationsText = (): string => {
     let content = `SOCIAL MEDIA DIALOGUE VARIATIONS\n`;
     content += `Generated on: ${new Date().toLocaleString()}\n\n`;
     content += `Settings:\n`;
@@ -428,9 +441,31 @@ const DialogueModifierGenerator = () => {
     content += `==============================\n\n`;
     
     generatedVariations.forEach((variation, index) => {
-      content += variationToText(variation, index);
+      content += getVariationText(variation, index);
       content += `------------------------------\n\n`;
     });
+    
+    return content;
+  };
+  
+  // Function to download a variation as a text file
+  const downloadVariation = (variation: Variation, index: number): void => {
+    const content = getVariationText(variation, index);
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dialogue-variation-${index + 1}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+  // Function to download all variations as a text file
+  const downloadAllVariations = (): void => {
+    if (!generatedVariations.length) return;
+    
+    const content = getAllVariationsText();
     
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -442,18 +477,6 @@ const DialogueModifierGenerator = () => {
     document.body.removeChild(link);
   };
   
-  // Function to download a single variation
-  const downloadVariation = (variation: Variation, index: number): void => {
-    const content = variationToText(variation, index);
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `dialogue-variation-${index + 1}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
   
   // Generate all variations
   const generateAllVariations = (): void => {
@@ -711,12 +734,18 @@ const DialogueModifierGenerator = () => {
         <div ref={resultsRef} className="bg-white rounded-lg shadow p-4 mb-8">
           <h2 className="text-2xl font-bold mb-4">Generated Variations ({generatedVariations.length})</h2>
           
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-6 space-x-4">
             <button 
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg"
               onClick={downloadAllVariations}
             >
-              Download All Variations as .txt
+              Download All as .txt
+            </button>
+            <button 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-lg"
+              onClick={() => copyToClipboard(getAllVariationsText())}
+            >
+              Copy All to Clipboard
             </button>
           </div>
           
@@ -725,18 +754,34 @@ const DialogueModifierGenerator = () => {
               <div key={index} className="border rounded-lg p-4">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-bold text-lg">Variation #{index + 1}</h3>
-                  <button
-                    className="bg-green-100 hover:bg-green-200 text-green-800 font-medium py-1 px-3 rounded text-sm"
-                    onClick={() => downloadVariation(variation, index)}
-                  >
-                    Download as .txt
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-1 px-3 rounded text-sm"
+                      onClick={() => copyToClipboard(getVariationText(variation, index))}
+                    >
+                      Copy
+                    </button>
+                    <button
+                      className="bg-green-100 hover:bg-green-200 text-green-800 font-medium py-1 px-3 rounded text-sm"
+                      onClick={() => downloadVariation(variation, index)}
+                    >
+                      Download
+                    </button>
+                  </div>
                 </div>
                 
                 {variation.originalPost && (
                   <div className="mb-4 bg-yellow-50 p-3 rounded-lg">
                     <div className="font-semibold mb-1">Original Post:</div>
-                    <div>{variation.originalPost}</div>
+                    <div className="flex justify-between items-start">
+                      <div className="pr-2">{variation.originalPost}</div>
+                      <button
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs mt-1 flex-shrink-0"
+                        onClick={() => copyToClipboard(variation.originalPost)}
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
                 )}
                 
@@ -747,7 +792,15 @@ const DialogueModifierGenerator = () => {
                         <div className="font-semibold mb-1">
                           {comment.role === 'original' ? 'Original Poster' : 'Responder'} (Comment #{comment.id}):
                         </div>
-                        <div>{comment.text}</div>
+                        <div className="flex justify-between items-start">
+                          <div className="pr-2">{comment.text}</div>
+                          <button
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs mt-1 flex-shrink-0"
+                            onClick={() => copyToClipboard(comment.text)}
+                          >
+                            Copy
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
